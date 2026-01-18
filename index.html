@@ -424,7 +424,9 @@
     // Carregar votos
     async function carregarVotos() {
       try {
-        const response = await fetch(API_URL);
+        // Adicionar timestamp para evitar cache
+        const urlComTimestamp = API_URL + '&_t=' + Date.now();
+        const response = await fetch(urlComTimestamp);
         if (!response.ok) throw new Error('Erro ao carregar');
         
         dadosAtuais = await response.json();
