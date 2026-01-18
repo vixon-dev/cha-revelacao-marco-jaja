@@ -378,7 +378,12 @@
   </div>
 
   <script>
+    // JSONBlob API
+    const BLOB_ID = '019bcf22-afd7-74da-8ead-c78b752d9644';
+    const API_URL = `https://jsonblob.com/api/jsonBlob/${BLOB_ID}`;
+    
     let escolhaSelecionada = '';
+    let dadosAtuais = { votos: [] };
 
     // Selecionar escolha
     document.querySelectorAll('.escolha-btn').forEach(btn => {
@@ -408,24 +413,39 @@
       }, 5000);
     }
 
+    // Normalizar nome para comparacao
+    function normalizarNome(nome) {
+      return nome.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
     // Carregar votos
     async function carregarVotos() {
       try {
-        const response = await fetch('/api/votos');
-        const data = await response.json();
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error('Erro ao carregar');
+        
+        dadosAtuais = await response.json();
+        if (!dadosAtuais.votos) dadosAtuais.votos = [];
+        
+        const votos = dadosAtuais.votos;
+        const estatisticas = {
+          total: votos.length,
+          menino: votos.filter(v => v.escolha === 'menino').length,
+          menina: votos.filter(v => v.escolha === 'menina').length
+        };
         
         // Atualizar estatisticas
-        document.getElementById('countMenino').textContent = data.estatisticas.menino;
-        document.getElementById('countMenina').textContent = data.estatisticas.menina;
-        document.getElementById('countTotal').textContent = data.estatisticas.total;
+        document.getElementById('countMenino').textContent = estatisticas.menino;
+        document.getElementById('countMenina').textContent = estatisticas.menina;
+        document.getElementById('countTotal').textContent = estatisticas.total;
         
         // Atualizar lista
         const lista = document.getElementById('listaVotos');
-        if (data.votos.length === 0) {
+        if (votos.length === 0) {
           lista.innerHTML = '<div class="sem-votos">Nenhuma aposta ainda. Seja o primeiro!</div>';
         } else {
           // Ordenar por data (mais recente primeiro)
-          const votosOrdenados = data.votos.sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
+          const votosOrdenados = [...votos].sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
           lista.innerHTML = votosOrdenados.map(voto => `
             <div class="voto-item ${voto.escolha}">
               <span class="voto-nome">${escapeHtml(voto.nome)}</span>
@@ -437,7 +457,7 @@
         }
       } catch (error) {
         console.error('Erro ao carregar votos:', error);
-        document.getElementById('listaVotos').innerHTML = '<div class="sem-votos">Erro ao carregar apostas</div>';
+        document.getElementById('listaVotos').innerHTML = '<div class="sem-votos">Erro ao carregar apostas. Recarregue a pagina.</div>';
       }
     }
 
@@ -446,6 +466,21 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    // Salvar votos
+    async function salvarVotos(dados) {
+      const response = await fetch(API_URL, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(dados)
+      });
+      
+      if (!response.ok) throw new Error('Erro ao salvar');
+      return true;
     }
 
     // Enviar voto
@@ -462,24 +497,41 @@
       btnVotar.textContent = 'Enviando...';
       
       try {
-        const response = await fetch('/api/votos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ nome, escolha })
-        });
+        // Recarregar dados atuais para evitar conflitos
+        await carregarVotos();
         
-        const data = await response.json();
+        const nomeNormalizado = normalizarNome(nome);
         
-        if (response.ok) {
-          mostrarMensagem(`Aposta registrada com sucesso! Voce apostou em ${escolha === 'menino' ? '👦 Menino' : '👧 Menina'}`, 'sucesso');
-          document.getElementById('nome').value = '';
-          document.querySelectorAll('.escolha-btn').forEach(b => b.classList.remove('selected'));
-          escolhaSelecionada = '';
-          carregarVotos();
-        } else {
-          mostrarMensagem(data.erro, 'erro');
+        // Verificar voto duplicado
+        const votoDuplicado = dadosAtuais.votos.find(v => normalizarNome(v.nome) === nomeNormalizado);
+        if (votoDuplicado) {
+          mostrarMensagem('Voce ja votou! Cada pessoa so pode votar uma vez.', 'erro');
+          btnVotar.disabled = false;
+          btnVotar.textContent = 'Fazer minha aposta!';
+          atualizarBotao();
+          return;
         }
+        
+        // Adicionar novo voto
+        const novoVoto = {
+          id: Date.now(),
+          nome: nome,
+          escolha: escolha,
+          dataHora: new Date().toISOString()
+        };
+        
+        dadosAtuais.votos.push(novoVoto);
+        
+        await salvarVotos(dadosAtuais);
+        
+        mostrarMensagem(`Aposta registrada com sucesso! Voce apostou em ${escolha === 'menino' ? '👦 Menino' : '👧 Menina'}`, 'sucesso');
+        document.getElementById('nome').value = '';
+        document.querySelectorAll('.escolha-btn').forEach(b => b.classList.remove('selected'));
+        escolhaSelecionada = '';
+        carregarVotos();
+        
       } catch (error) {
+        console.error('Erro:', error);
         mostrarMensagem('Erro ao enviar aposta. Tente novamente.', 'erro');
       }
       
