@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cha Revelacao - Marco Tulio e Jaja</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #ffecd2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-family: 'Dancing Script', cursive;
+      font-size: 2.8rem;
+      color: #5a3d5c;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: #666;
+      font-weight: 300;
+    }
+
+    .parents {
+      font-size: 1.3rem;
+      color: #e75480;
+      font-weight: 600;
+      margin-top: 5px;
+    }
+
+    .emoji-header {
+      font-size: 3rem;
+      margin-bottom: 10px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #e75480;
+    }
+
+    .escolha-container {
+      display: flex;
+      gap: 15px;
+      margin-top: 10px;
+    }
+
+    .escolha-btn {
+      flex: 1;
+      padding: 20px;
+      border: 3px solid #e0e0e0;
+      border-radius: 15px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s;
+      text-align: center;
+    }
+
+    .escolha-btn:hover {
+      transform: scale(1.02);
+    }
+
+    .escolha-btn.menino {
+      border-color: #87ceeb;
+    }
+
+    .escolha-btn.menino:hover,
+    .escolha-btn.menino.selected {
+      background: linear-gradient(135deg, #87ceeb, #4a90d9);
+      color: white;
+      border-color: #4a90d9;
+    }
+
+    .escolha-btn.menina {
+      border-color: #ffb6c1;
+    }
+
+    .escolha-btn.menina:hover,
+    .escolha-btn.menina.selected {
+      background: linear-gradient(135deg, #ffb6c1, #e75480);
+      color: white;
+      border-color: #e75480;
+    }
+
+    .escolha-emoji {
+      font-size: 2.5rem;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .escolha-texto {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+
+    .btn-votar {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .btn-votar:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-votar:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .estatisticas {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 20px;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 15px;
+      border-radius: 15px;
+      min-width: 100px;
+    }
+
+    .stat-item.menino {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+    }
+
+    .stat-item.menina {
+      background: linear-gradient(135deg, #fce4ec, #f8bbd9);
+    }
+
+    .stat-item.total {
+      background: linear-gradient(135deg, #f3e5f5, #e1bee7);
+    }
+
+    .stat-numero {
+      font-size: 2rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: #666;
+    }
+
+    .lista-votos h3 {
+      margin-bottom: 15px;
+      color: #5a3d5c;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .voto-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 15px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .voto-item.menino {
+      background: linear-gradient(135deg, #e3f2fd, #bbdefb);
+      border-left: 4px solid #4a90d9;
+    }
+
+    .voto-item.menina {
+      background: linear-gradient(135deg, #fce4ec, #f8bbd9);
+      border-left: 4px solid #e75480;
+    }
+
+    .voto-nome {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .voto-escolha {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.9rem;
+    }
+
+    .mensagem {
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      text-align: center;
+      font-weight: 500;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .mensagem.sucesso {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .mensagem.erro {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .sem-votos {
+      text-align: center;
+      color: #999;
+      padding: 20px;
+      font-style: italic;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 30px;
+      color: #888;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 2.2rem;
+      }
+      
+      .escolha-container {
+        flex-direction: column;
+      }
+      
+      .escolha-emoji {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="emoji-header">👶🍼</div>
+      <h1>Cha Revelacao</h1>
+      <p class="subtitle">Qual sera o sexo do bebe?</p>
+      <p class="parents">Marco Tulio & Jaja</p>
+    </header>
+
+    <div class="card">
+      <div id="mensagem"></div>
+      
+      <form id="formVoto">
+        <div class="form-group">
+          <label for="nome">Seu nome:</label>
+          <input type="text" id="nome" placeholder="Digite seu nome" required maxlength="50">
+        </div>
+
+        <div class="form-group">
+          <label>Sua aposta:</label>
+          <div class="escolha-container">
+            <button type="button" class="escolha-btn menino" data-escolha="menino">
+              <span class="escolha-emoji">👦💙</span>
+              <span class="escolha-texto">Menino</span>
+            </button>
+            <button type="button" class="escolha-btn menina" data-escolha="menina">
+              <span class="escolha-emoji">👧💖</span>
+              <span class="escolha-texto">Menina</span>
+            </button>
+          </div>
+        </div>
+
+        <input type="hidden" id="escolha" value="">
+        
+        <button type="submit" class="btn-votar" id="btnVotar" disabled>
+          Fazer minha aposta!
+        </button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="estatisticas">
+        <div class="stat-item menino">
+          <div class="stat-numero" id="countMenino">0</div>
+          <div class="stat-label">👦 Menino</div>
+        </div>
+        <div class="stat-item total">
+          <div class="stat-numero" id="countTotal">0</div>
+          <div class="stat-label">📊 Total</div>
+        </div>
+        <div class="stat-item menina">
+          <div class="stat-numero" id="countMenina">0</div>
+          <div class="stat-label">👧 Menina</div>
+        </div>
+      </div>
+
+      <div class="lista-votos">
+        <h3>📋 Apostas realizadas</h3>
+        <div id="listaVotos">
+          <div class="loading">Carregando...</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      Feito com 💜 para o cha revelacao do Marco Tulio e Jaja
+    </footer>
+  </div>
+
+  <script>
+    let escolhaSelecionada = '';
+
+    // Selecionar escolha
+    document.querySelectorAll('.escolha-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.escolha-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        escolhaSelecionada = btn.dataset.escolha;
+        document.getElementById('escolha').value = escolhaSelecionada;
+        atualizarBotao();
+      });
+    });
+
+    // Atualizar estado do botao
+    function atualizarBotao() {
+      const nome = document.getElementById('nome').value.trim();
+      document.getElementById('btnVotar').disabled = !nome || !escolhaSelecionada;
+    }
+
+    document.getElementById('nome').addEventListener('input', atualizarBotao);
+
+    // Mostrar mensagem
+    function mostrarMensagem(texto, tipo) {
+      const div = document.getElementById('mensagem');
+      div.innerHTML = `<div class="mensagem ${tipo}">${texto}</div>`;
+      setTimeout(() => {
+        div.innerHTML = '';
+      }, 5000);
+    }
+
+    // Carregar votos
+    async function carregarVotos() {
+      try {
+        const response = await fetch('/api/votos');
+        const data = await response.json();
+        
+        // Atualizar estatisticas
+        document.getElementById('countMenino').textContent = data.estatisticas.menino;
+        document.getElementById('countMenina').textContent = data.estatisticas.menina;
+        document.getElementById('countTotal').textContent = data.estatisticas.total;
+        
+        // Atualizar lista
+        const lista = document.getElementById('listaVotos');
+        if (data.votos.length === 0) {
+          lista.innerHTML = '<div class="sem-votos">Nenhuma aposta ainda. Seja o primeiro!</div>';
+        } else {
+          // Ordenar por data (mais recente primeiro)
+          const votosOrdenados = data.votos.sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
+          lista.innerHTML = votosOrdenados.map(voto => `
+            <div class="voto-item ${voto.escolha}">
+              <span class="voto-nome">${escapeHtml(voto.nome)}</span>
+              <span class="voto-escolha">
+                ${voto.escolha === 'menino' ? '👦💙 Menino' : '👧💖 Menina'}
+              </span>
+            </div>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Erro ao carregar votos:', error);
+        document.getElementById('listaVotos').innerHTML = '<div class="sem-votos">Erro ao carregar apostas</div>';
+      }
+    }
+
+    // Escape HTML para prevenir XSS
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Enviar voto
+    document.getElementById('formVoto').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const nome = document.getElementById('nome').value.trim();
+      const escolha = escolhaSelecionada;
+      
+      if (!nome || !escolha) return;
+      
+      const btnVotar = document.getElementById('btnVotar');
+      btnVotar.disabled = true;
+      btnVotar.textContent = 'Enviando...';
+      
+      try {
+        const response = await fetch('/api/votos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome, escolha })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          mostrarMensagem(`Aposta registrada com sucesso! Voce apostou em ${escolha === 'menino' ? '👦 Menino' : '👧 Menina'}`, 'sucesso');
+          document.getElementById('nome').value = '';
+          document.querySelectorAll('.escolha-btn').forEach(b => b.classList.remove('selected'));
+          escolhaSelecionada = '';
+          carregarVotos();
+        } else {
+          mostrarMensagem(data.erro, 'erro');
+        }
+      } catch (error) {
+        mostrarMensagem('Erro ao enviar aposta. Tente novamente.', 'erro');
+      }
+      
+      btnVotar.disabled = false;
+      btnVotar.textContent = 'Fazer minha aposta!';
+      atualizarBotao();
+    });
+
+    // Carregar votos ao iniciar
+    carregarVotos();
+    
+    // Atualizar a cada 30 segundos
+    setInterval(carregarVotos, 30000);
+  </script>
+</body>
+</html>
