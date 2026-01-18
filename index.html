@@ -430,42 +430,18 @@
     </footer>
   </div>
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  
   <script>
-    // Configuracao Firebase (usando um projeto publico para demo)
-    const firebaseConfig = {
-      apiKey: "AIzaSyBxPgQbk1sXdYD3fH3Z4Hs_cha_revelacao",
-      authDomain: "cha-revelacao-demo.firebaseapp.com",
-      databaseURL: "https://cha-revelacao-marco-jaja-default-rtdb.firebaseio.com",
-      projectId: "cha-revelacao-demo",
-      storageBucket: "cha-revelacao-demo.appspot.com",
-      messagingSenderId: "123456789",
-      appId: "1:123456789:web:abc123"
-    };
+    // Configuracao JSONBin.io
+    const JSONBIN_BIN_ID = '696c613ed0ea881f407369ca';
+    const JSONBIN_API_KEY = '$2a$10$0TB7Nqo5wXgc5300J6icxOjNLqG8lrg7WzBe4BHifW/XdiN3KcRMu';
+    const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
-    // Fallback para localStorage se Firebase falhar
-    let useLocalStorage = false;
-    let db = null;
-    let votosRef = null;
-    
-    // Tentar inicializar Firebase
-    try {
-      firebase.initializeApp(firebaseConfig);
-      db = firebase.database();
-      votosRef = db.ref('votos');
-    } catch (e) {
-      console.log('Firebase nao disponivel, usando localStorage');
-      useLocalStorage = true;
-    }
-
-    const STORAGE_KEY = 'cha_revelacao_votos_v2';
+    const STORAGE_KEY = 'cha_revelacao_votos_v3';
     let escolhaSelecionada = '';
     let dadosAtuais = { votos: [] };
+    let isOnline = false;
 
-    // Funcoes localStorage
+    // Funcoes localStorage (backup)
     function carregarDadosLocal() {
       try {
         const dados = localStorage.getItem(STORAGE_KEY);
@@ -556,9 +532,10 @@
     }
 
     function atualizarSyncStatus(online) {
+      isOnline = online;
       const el = document.getElementById('syncStatus');
       if (online) {
-        el.textContent = '🟢 Sincronizado em tempo real';
+        el.textContent = '🟢 Sincronizado na nuvem';
         el.className = 'sync-status online';
       } else {
         el.textContent = '🔴 Modo offline (dados locais)';
@@ -566,37 +543,49 @@
       }
     }
 
-    // Carregar votos
+    // Carregar votos do JSONBin
     async function carregarVotos() {
-      if (useLocalStorage) {
-        dadosAtuais = carregarDadosLocal();
-        atualizarInterface(dadosAtuais.votos || []);
-        atualizarSyncStatus(false);
-        return;
-      }
-
       try {
-        // Listener em tempo real do Firebase
-        votosRef.on('value', (snapshot) => {
-          const data = snapshot.val();
-          const votos = data ? Object.values(data) : [];
-          dadosAtuais.votos = votos;
-          // Salvar localmente tambem como backup
-          salvarDadosLocal({ votos });
-          atualizarInterface(votos);
-          atualizarSyncStatus(true);
-        }, (error) => {
-          console.error('Erro Firebase:', error);
-          // Fallback para localStorage
-          dadosAtuais = carregarDadosLocal();
-          atualizarInterface(dadosAtuais.votos || []);
-          atualizarSyncStatus(false);
+        const response = await fetch(`${JSONBIN_URL}/latest`, {
+          method: 'GET',
+          headers: {
+            'X-Master-Key': JSONBIN_API_KEY
+          }
         });
+        
+        if (response.ok) {
+          const data = await response.json();
+          dadosAtuais = data.record || { votos: [] };
+          salvarDadosLocal(dadosAtuais);
+          atualizarInterface(dadosAtuais.votos || []);
+          atualizarSyncStatus(true);
+        } else {
+          throw new Error('Erro ao carregar');
+        }
       } catch (e) {
-        console.error('Erro ao carregar:', e);
+        console.error('Erro ao carregar do JSONBin:', e);
         dadosAtuais = carregarDadosLocal();
         atualizarInterface(dadosAtuais.votos || []);
         atualizarSyncStatus(false);
+      }
+    }
+
+    // Salvar votos no JSONBin
+    async function salvarVotosRemoto(dados) {
+      try {
+        const response = await fetch(JSONBIN_URL, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Master-Key': JSONBIN_API_KEY
+          },
+          body: JSON.stringify(dados)
+        });
+        
+        return response.ok;
+      } catch (e) {
+        console.error('Erro ao salvar no JSONBin:', e);
+        return false;
       }
     }
 
@@ -612,6 +601,9 @@
       const btnVotar = document.getElementById('btnVotar');
       btnVotar.disabled = true;
       btnVotar.textContent = 'Enviando...';
+      
+      // Recarregar dados antes de verificar duplicado (para pegar votos mais recentes)
+      await carregarVotos();
       
       const nomeNormalizado = normalizarNome(nome);
       
@@ -632,39 +624,35 @@
         dataHora: new Date().toISOString()
       };
       
-      try {
-        if (!useLocalStorage && votosRef) {
-          // Salvar no Firebase
-          await votosRef.child(novoVoto.id).set(novoVoto);
-        } else {
-          // Salvar localmente
-          if (!dadosAtuais.votos) dadosAtuais.votos = [];
-          dadosAtuais.votos.push(novoVoto);
-          salvarDadosLocal(dadosAtuais);
-          atualizarInterface(dadosAtuais.votos);
-        }
-        
+      // Adicionar voto
+      if (!dadosAtuais.votos) dadosAtuais.votos = [];
+      dadosAtuais.votos.push(novoVoto);
+      
+      // Salvar localmente primeiro
+      salvarDadosLocal(dadosAtuais);
+      atualizarInterface(dadosAtuais.votos);
+      
+      // Tentar salvar remotamente
+      const salvoRemoto = await salvarVotosRemoto(dadosAtuais);
+      atualizarSyncStatus(salvoRemoto);
+      
+      if (salvoRemoto) {
         mostrarMensagem(`Aposta registrada! Voce apostou em ${getEscolhaDisplay(escolha)}`, 'sucesso');
-        document.getElementById('nome').value = '';
-        document.querySelectorAll('.escolha-btn').forEach(b => b.classList.remove('selected'));
-        escolhaSelecionada = '';
-      } catch (error) {
-        console.error('Erro ao salvar:', error);
-        // Fallback para localStorage
-        if (!dadosAtuais.votos) dadosAtuais.votos = [];
-        dadosAtuais.votos.push(novoVoto);
-        salvarDadosLocal(dadosAtuais);
-        atualizarInterface(dadosAtuais.votos);
-        mostrarMensagem(`Aposta registrada! Voce apostou em ${getEscolhaDisplay(escolha)}`, 'sucesso');
-        document.getElementById('nome').value = '';
-        document.querySelectorAll('.escolha-btn').forEach(b => b.classList.remove('selected'));
-        escolhaSelecionada = '';
+      } else {
+        mostrarMensagem(`Aposta salva localmente. Sincronizacao pendente.`, 'sucesso');
       }
+      
+      document.getElementById('nome').value = '';
+      document.querySelectorAll('.escolha-btn').forEach(b => b.classList.remove('selected'));
+      escolhaSelecionada = '';
       
       btnVotar.disabled = false;
       btnVotar.textContent = 'Fazer minha aposta!';
       atualizarBotao();
     });
+
+    // Atualizar votos periodicamente (a cada 30 segundos)
+    setInterval(carregarVotos, 30000);
 
     // Iniciar
     carregarVotos();
