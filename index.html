@@ -378,9 +378,12 @@
   </div>
 
   <script>
-    // JSONBlob API
+    // JSONBlob API com proxy CORS
     const BLOB_ID = '019bcf22-afd7-74da-8ead-c78b752d9644';
-    const API_URL = `https://jsonblob.com/api/jsonBlob/${BLOB_ID}`;
+    const API_BASE = `https://jsonblob.com/api/jsonBlob/${BLOB_ID}`;
+    // Usar proxy CORS para contornar restricoes do browser
+    const CORS_PROXY = 'https://corsproxy.io/?';
+    const API_URL = CORS_PROXY + encodeURIComponent(API_BASE);
     
     let escolhaSelecionada = '';
     let dadosAtuais = { votos: [] };
@@ -470,7 +473,8 @@
 
     // Salvar votos
     async function salvarVotos(dados) {
-      const response = await fetch(API_URL, {
+      // Para PUT, precisamos usar o proxy CORS com a URL original
+      const response = await fetch(CORS_PROXY + encodeURIComponent(API_BASE), {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
