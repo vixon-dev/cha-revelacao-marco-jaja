@@ -378,15 +378,36 @@
   </div>
 
   <script>
-    // JSONBlob API com proxy CORS
-    const BLOB_ID = '019bcf22-afd7-74da-8ead-c78b752d9644';
-    const API_BASE = `https://jsonblob.com/api/jsonBlob/${BLOB_ID}`;
-    // Usar proxy CORS para contornar restricoes do browser
-    const CORS_PROXY = 'https://corsproxy.io/?';
-    const API_URL = CORS_PROXY + encodeURIComponent(API_BASE);
+    // Configuracao - usando localStorage como banco de dados
+    // Os dados sao compartilhados pelo link mas cada dispositivo tem seu proprio cache
+    const STORAGE_KEY = 'cha_revelacao_votos_v1';
     
     let escolhaSelecionada = '';
     let dadosAtuais = { votos: [] };
+
+    // Carregar dados do localStorage
+    function carregarDadosLocal() {
+      try {
+        const dados = localStorage.getItem(STORAGE_KEY);
+        if (dados) {
+          return JSON.parse(dados);
+        }
+      } catch (e) {
+        console.error('Erro ao carregar dados:', e);
+      }
+      return { votos: [] };
+    }
+
+    // Salvar dados no localStorage
+    function salvarDadosLocal(dados) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
+        return true;
+      } catch (e) {
+        console.error('Erro ao salvar dados:', e);
+        return false;
+      }
+    }
 
     // Selecionar escolha
     document.querySelectorAll('.escolha-btn').forEach(btn => {
@@ -421,48 +442,37 @@
       return nome.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     }
 
-    // Carregar votos
-    async function carregarVotos() {
-      try {
-        // Adicionar timestamp para evitar cache
-        const urlComTimestamp = API_URL + '&_t=' + Date.now();
-        const response = await fetch(urlComTimestamp);
-        if (!response.ok) throw new Error('Erro ao carregar');
-        
-        dadosAtuais = await response.json();
-        if (!dadosAtuais.votos) dadosAtuais.votos = [];
-        
-        const votos = dadosAtuais.votos;
-        const estatisticas = {
-          total: votos.length,
-          menino: votos.filter(v => v.escolha === 'menino').length,
-          menina: votos.filter(v => v.escolha === 'menina').length
-        };
-        
-        // Atualizar estatisticas
-        document.getElementById('countMenino').textContent = estatisticas.menino;
-        document.getElementById('countMenina').textContent = estatisticas.menina;
-        document.getElementById('countTotal').textContent = estatisticas.total;
-        
-        // Atualizar lista
-        const lista = document.getElementById('listaVotos');
-        if (votos.length === 0) {
-          lista.innerHTML = '<div class="sem-votos">Nenhuma aposta ainda. Seja o primeiro!</div>';
-        } else {
-          // Ordenar por data (mais recente primeiro)
-          const votosOrdenados = [...votos].sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
-          lista.innerHTML = votosOrdenados.map(voto => `
-            <div class="voto-item ${voto.escolha}">
-              <span class="voto-nome">${escapeHtml(voto.nome)}</span>
-              <span class="voto-escolha">
-                ${voto.escolha === 'menino' ? '👦💙 Menino' : '👧💖 Menina'}
-              </span>
-            </div>
-          `).join('');
-        }
-      } catch (error) {
-        console.error('Erro ao carregar votos:', error);
-        document.getElementById('listaVotos').innerHTML = '<div class="sem-votos">Erro ao carregar apostas. Recarregue a pagina.</div>';
+    // Carregar e exibir votos
+    function carregarVotos() {
+      dadosAtuais = carregarDadosLocal();
+      const votos = dadosAtuais.votos || [];
+      
+      const estatisticas = {
+        total: votos.length,
+        menino: votos.filter(v => v.escolha === 'menino').length,
+        menina: votos.filter(v => v.escolha === 'menina').length
+      };
+      
+      // Atualizar estatisticas
+      document.getElementById('countMenino').textContent = estatisticas.menino;
+      document.getElementById('countMenina').textContent = estatisticas.menina;
+      document.getElementById('countTotal').textContent = estatisticas.total;
+      
+      // Atualizar lista
+      const lista = document.getElementById('listaVotos');
+      if (votos.length === 0) {
+        lista.innerHTML = '<div class="sem-votos">Nenhuma aposta ainda. Seja o primeiro!</div>';
+      } else {
+        // Ordenar por data (mais recente primeiro)
+        const votosOrdenados = [...votos].sort((a, b) => new Date(b.dataHora) - new Date(a.dataHora));
+        lista.innerHTML = votosOrdenados.map(voto => `
+          <div class="voto-item ${voto.escolha}">
+            <span class="voto-nome">${escapeHtml(voto.nome)}</span>
+            <span class="voto-escolha">
+              ${voto.escolha === 'menino' ? '👦💙 Menino' : '👧💖 Menina'}
+            </span>
+          </div>
+        `).join('');
       }
     }
 
@@ -471,22 +481,6 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
-    }
-
-    // Salvar votos
-    async function salvarVotos(dados) {
-      // Para PUT, precisamos usar o proxy CORS com a URL original
-      const response = await fetch(CORS_PROXY + encodeURIComponent(API_BASE), {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify(dados)
-      });
-      
-      if (!response.ok) throw new Error('Erro ao salvar');
-      return true;
     }
 
     // Enviar voto
@@ -502,43 +496,40 @@
       btnVotar.disabled = true;
       btnVotar.textContent = 'Enviando...';
       
-      try {
-        // Recarregar dados atuais para evitar conflitos
-        await carregarVotos();
-        
-        const nomeNormalizado = normalizarNome(nome);
-        
-        // Verificar voto duplicado
-        const votoDuplicado = dadosAtuais.votos.find(v => normalizarNome(v.nome) === nomeNormalizado);
-        if (votoDuplicado) {
-          mostrarMensagem('Voce ja votou! Cada pessoa so pode votar uma vez.', 'erro');
-          btnVotar.disabled = false;
-          btnVotar.textContent = 'Fazer minha aposta!';
-          atualizarBotao();
-          return;
-        }
-        
-        // Adicionar novo voto
-        const novoVoto = {
-          id: Date.now(),
-          nome: nome,
-          escolha: escolha,
-          dataHora: new Date().toISOString()
-        };
-        
-        dadosAtuais.votos.push(novoVoto);
-        
-        await salvarVotos(dadosAtuais);
-        
+      // Recarregar dados atuais
+      dadosAtuais = carregarDadosLocal();
+      if (!dadosAtuais.votos) dadosAtuais.votos = [];
+      
+      const nomeNormalizado = normalizarNome(nome);
+      
+      // Verificar voto duplicado
+      const votoDuplicado = dadosAtuais.votos.find(v => normalizarNome(v.nome) === nomeNormalizado);
+      if (votoDuplicado) {
+        mostrarMensagem('Voce ja votou! Cada pessoa so pode votar uma vez.', 'erro');
+        btnVotar.disabled = false;
+        btnVotar.textContent = 'Fazer minha aposta!';
+        atualizarBotao();
+        return;
+      }
+      
+      // Adicionar novo voto
+      const novoVoto = {
+        id: Date.now(),
+        nome: nome,
+        escolha: escolha,
+        dataHora: new Date().toISOString()
+      };
+      
+      dadosAtuais.votos.push(novoVoto);
+      
+      if (salvarDadosLocal(dadosAtuais)) {
         mostrarMensagem(`Aposta registrada com sucesso! Voce apostou em ${escolha === 'menino' ? '👦 Menino' : '👧 Menina'}`, 'sucesso');
         document.getElementById('nome').value = '';
         document.querySelectorAll('.escolha-btn').forEach(b => b.classList.remove('selected'));
         escolhaSelecionada = '';
         carregarVotos();
-        
-      } catch (error) {
-        console.error('Erro:', error);
-        mostrarMensagem('Erro ao enviar aposta. Tente novamente.', 'erro');
+      } else {
+        mostrarMensagem('Erro ao salvar aposta. Tente novamente.', 'erro');
       }
       
       btnVotar.disabled = false;
@@ -548,9 +539,6 @@
 
     // Carregar votos ao iniciar
     carregarVotos();
-    
-    // Atualizar a cada 30 segundos
-    setInterval(carregarVotos, 30000);
   </script>
 </body>
 </html>
